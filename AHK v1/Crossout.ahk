@@ -1,11 +1,9 @@
 #NoEnv
 #Include Lib\AutoHotInterception.ahk
-;~ Run, chair\chair.ahk```
 #SingleInstance force
+#InstallMouseHook
 if FileExist(A_ScriptDir . "\icon.ico")
 	Menu, Tray, Icon, %A_ScriptDir%\icon.ico
-;~ #SingleInstance force
-;~ #Persistent
 global AHI := new AutoHotInterception()
 global keyboardId := AHI.GetKeyboardId(0x0951, 0x16DD)
 global mouseId := AHI.GetMouseId(0x09DA, 0x13C1)
@@ -22,113 +20,107 @@ KeyEvent(code, state){
             Numpad1()
         case 80:
             Numpad2()
-        case 14:
-            keyDelete()
+        case 69:
+            pauseKey()
     }
 }
+; Numpad0
 Numpad0(){
     AHI.UnsubscribeMouseButton(mouseId, 0)
     notice_mod_chance("Normal")
 }
+; Numpad1
 Numpad1(){
     AHI.UnsubscribeMouseButton(mouseId, 0)
     AHI.SubscribeMouseButton(mouseId, 0, false, Func("All_Guns_Fire_mouse"))
     notice_mod_chance("All Guns Fire")
 }
+All_Guns_Fire_mouse(state){
+    if !CheckIfWinActive("Crossout.exe")
+        return
+    if state
+    {
+        AHI.SendKeyEvent(keyboardId, GetKeySC("1"), 1)
+        AHI.SendKeyEvent(keyboardId, GetKeySC("2"), 1)
+        AHI.SendKeyEvent(keyboardId, GetKeySC("shift"), 1)
+    }
+    else
+    {
+        AHI.SendKeyEvent(keyboardId, GetKeySC("1"), 0)
+        AHI.SendKeyEvent(keyboardId, GetKeySC("2"), 0)
+        AHI.SendKeyEvent(keyboardId, GetKeySC("shift"), 0)
+    }
+
+}
+; Numpad2
 Numpad2(){
     AHI.UnsubscribeMouseButton(mouseId, 0)
     AHI.SubscribeMouseButton(mouseId, 0, false, Func("Machine_mouse"))
     notice_mod_chance("Machine")
 }
-keyDelete(){
-    ifequal state, 1, return
+Machine_mouse(state){
+    While (GetKeyState("LButton", "P") && state && CheckIfWinActive("Crossout.exe"))
+    {
+        AHI.SendKeyEvent(keyboardId, GetKeySC("1"), 1)
+        AHI.SendKeyEvent(keyboardId, GetKeySC("1"), 0)
+        ;~ AHI.SendMouseButtonEvent(mouseId, 0, 1)
+        ;~ AHI.SendMouseButtonEvent(mouseId, 0, 0)
+    }
+}
+; pauseKey
+pauseKey(){
+    ifequal state, 0, return
     IfWinNotActive, ahk_exe Crossout.exe
         return
-    sleep 100
+    ; delete code 14
     AHI.SendKeyEvent(keyboardId, 14, 1)
     sleep 1020
     AHI.SendKeyEvent(keyboardId, 14, 0)
 }
+/*
+;~ start := A_TickCount
+;~ notice_mod_chance("state " . state . " All_Guns_Fire_mouse")
+;~ Run, chair\chair.ahk
+;~ #SingleInstance force
+;~ #Persistent
+;~ #InstallMouseHook
+;~ start := A_TickCount
+;;~ if ((A_TickCount - start)/1000) > 3
+    ;;~ break
+myList := []
+While GetKeyState("LButton", "P")
+{
+    ; Get the current position of the mouse
+    ;~ MouseGetPos, currentX, currentY
+    direction := AHI.GetDirection(cp, dp)
+    ; Calculate the distance moved from the starting position
+    ;~ distance := AHI.GetDirection(startX "|" startY, currentX "|" currentY)
+
+    ; Print the distance moved
+    myList.push(direction)
+    ToolTip, % " : " direction
+}
+myString := myList.Join(", ")
+Clipboard := myString  ; copy string to clipboard
+*/
 notice_mod_chance(mod){
     ToolTip, %mod% on
-    Sleep 1000
+    Sleep 500
     ToolTip
 }
-All_Guns_Fire_mouse(state){
-    ;~ ifequal state, 0, return
-    ;~ notice_mod_chance("state " . state . " All_Guns_Fire_mouse")
-    IfWinNotActive, ahk_exe Crossout.exe
-        return
-    ;~ start := A_TickCount
-    if state
-    {
-        AHI.SendKeyEvent(keyboardId, GetKeySC("1"), 1)
-        Sleep, 25
-        AHI.SendKeyEvent(keyboardId, GetKeySC("1"), 0)
-        Sleep, 25
-        AHI.SendKeyEvent(keyboardId, GetKeySC("2"), 1)
-        Sleep, 25
-        AHI.SendKeyEvent(keyboardId, GetKeySC("2"), 0)
-        Sleep, 25
-        AHI.SendKeyEvent(keyboardId, GetKeySC("shift"), 1)
-        Sleep, 25
-        AHI.SendKeyEvent(keyboardId, GetKeySC("shift"), 0)
-    }
+CheckIfWinActive(processName)
+{
+    IfWinActive, ahk_exe %processName%
+        return true
     else
-    {
-
-    }
-    ;~ While GetKeyState("LButton", "P")
-    ;~ {
-        ;~ ;;~ if ((A_TickCount - start)/1000) > 3
-            ;~ ;;~ break
-        ;~ IfWinNotActive, ahk_exe Crossout.exe
-            ;~ break
-        ;~ ;;~ AHI.SendMouseButtonEvent(mouseId, 0, 1)
-
-        ;~ AHI.SendKeyEvent(keyboardId, GetKeySC("3"), 1)
-        ;~ Sleep, 100
-    ;~ }
-
+        return false
 }
-Machine_mouse(state){
-    ifequal state, 0, return
-    ;~ notice_mod_chance("state " . state . " Machine_mouse")
-    IfWinNotActive, ahk_exe Crossout.exe
-        return
-    start := A_TickCount
-    While GetKeyState("LButton", "P")
-    {
-        ;;~ if ((A_TickCount - start)/1000) > 3
-            ;;~ break
-        IfWinNotActive, ahk_exe Crossout.exe
-            break
-        ; down
-        ;;~ AHI.SendMouseButtonEvent(mouseId, 0, 1)
-        AHI.SendKeyEvent(keyboardId, GetKeySC("1"), 1)
-        ; up
-        ;;~ AHI.SendMouseButtonEvent(mouseId, 0, 0)
-        AHI.SendKeyEvent(keyboardId, GetKeySC("1"), 0)
-    }
-}
-    /*
-    myList := []
-    While GetKeyState("LButton", "P")
-    {
-        ; Get the current position of the mouse
-        ;~ MouseGetPos, currentX, currentY
-        direction := AHI.GetDirection(cp, dp)
-        ; Calculate the distance moved from the starting position
-        ;~ distance := AHI.GetDirection(startX "|" startY, currentX "|" currentY)
 
-        ; Print the distance moved
-        myList.push(direction)
-        ToolTip, % " : " direction
-    }
-    myString := myList.Join(", ")
-    Clipboard := myString  ; copy string to clipboard
-    */
 return
+
+
+
+
 ^Esc::
     ExitApp
 return
