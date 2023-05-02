@@ -2,36 +2,140 @@
 #Persistent
 #include Lib\JSON.ahk
 #include Lib\AutoHotInterception.ahk
+#NoEnv
+#SingleInstance force
+#InstallKeybdHook
+#InstallMouseHook
+if FileExist(A_ScriptDir . "\icon.ico")
+	Menu, Tray, Icon, %A_ScriptDir%\icon.ico
+global game_name := "RustClient.exe"
 global AHI := new AutoHotInterception()
 global keyboardId := AHI.GetKeyboardId(0x0951, 0x16DD)
 global mouseId := AHI.GetMouseId(0x09DA, 0x13C1)
-global ls_left, ls_right, ls_middle, ls_side1, ls_side2, ls_mw_vertical, ls_mw_horizontal ;ls = loopstate
-global mouseData := [], global dataAk47 := []
-Loop, Read, ak47.txt
-{
-    ; Split the line into separate values
-    ;line := StrSplit(A_LoopReadLine, ",")
-	arr := StrSplit(A_LoopReadLine, ",")
-	timestamp := (StrSplit(arr[1], " ")[2] * 1)*1
-	x := (StrSplit(arr[2], " ")[3] * 1)*0.58
-	y := (StrSplit(arr[3], " ")[3] * 1)*0.58
-	; Create a new object with the values
-    item := {}
-    item.Timestamp := timestamp
-    item.X := x
-    item.Y := y
-    ; Add the object to the array
-    dataAk47.Push(item)
-}
-;dataAk47 := Json.FromString(ak47Contents)
+;;TEST
+AHI.SubscribeMouseButton(mouseId, 0, false, Func("Assault_Rifle"))
+;;TEST
+AHI.SubscribeKeyboard(keyboardId, false, Func("KeyEvent"))
+KeyEvent(code, state){
+    ifequal state, 0, return
+    ; Numpad0 = 82; Numpad1 = 79; Numpad2 = 80; Numpad3 = 81; Numpad4 = 75; Numpad5 = 76; Numpad6 = 77; Numpad7 = 71; Numpad8 = 72; Numpad9 = 73
+	;~ ToolTip % "Keyboard Key - Code: " code ", State: " state
+    Switch code
+    {
+        case 82:
+            Numpad0()
+        case 79:
+            Numpad1()
 
-;==========================================Keyboard==================================
-;AHI.SubscribeKeyboard(keyboardId, false, Func("KeyEvent"))
-;KeyEvent(code, state){
-	;ToolTip % "Keyboard Key - Code: " code ", State: " state
-;}
+		case 73:
+            Numpad9()
+    }
+}
+; Numpad0 - Normal_Mode
+Numpad0(){
+    AHI.UnsubscribeMouseButton(mouseId, 0)
+    notice("Normal_Mode")
+}
+; Numpad1 - Assault_Rifle
+Numpad1(){
+    AHI.UnsubscribeMouseButton(mouseId, 0)
+    AHI.SubscribeMouseButton(mouseId, 0, false, Func("Assault_Rifle"))
+    notice("Assault_Rifle")
+}
+global Assault_Rifle := new Gun(4000,30)
+Assault_Rifle(state){
+	ifequal state, 0, return
+	tick := A_TickCount
+	bullet_counter := 1
+	While (GetKeyState("LButton", "P") && state && CheckIfWinActive()){
+		tock := A_TickCount
+		elapse := tock-tick
+		if (elapse > Assault_Rifle.bullet_times[bullet_counter-1])
+		{
+			Switch bullet_counter
+			{-----------------------------------------------------------------------------------------------------
+				case 1:
+					mmove(-5, 5)
+				case 2:
+					mmove(-5, 5)
+				case 3:
+					mmove(-5, 5)
+				default:
+					mmove(-2, 3)
+			}
+			bullet_counter += 1
+		}
+	}
+}
+class Gun {
+    ; Define some properties
+    all_magazine_time := 0
+    magazine_size := 0
+    bullet_times := []
+
+    ; Constructor
+    __New(all_magazine_time, magazine_size) {
+        this.all_magazine_time := all_magazine_time
+        this.magazine_size := magazine_size
+        this.calculate_bullet_times()
+    }
+
+    ; Calculate bullet times and add them to bullet_times[]
+    calculate_bullet_times() {
+		current_bullet_time := 0
+        per_bullet_time := this.all_magazine_time / this.magazine_size
+        loop, % this.magazine_size {
+			current_bullet_time += per_bullet_time
+            this.bullet_times[A_Index] := current_bullet_time
+        }
+    }
+
+    getMagazine_size() {
+        return this.magazine_size
+    }
+
+	getBullet_times() {
+        return this.bullet_times
+    }
+}
+
+; Numpad9 - Record
+Numpad9(){
+	AHI.UnsubscribeMouseButton(mouseId, 0)
+    AHI.SubscribeMouseButton(mouseId, 0, false, Func("Record"))
+    notice("Record")
+}
+;; DLL-----------------------------------------
+
+;; DLL-----------------------------------------
+Record(state){
+	While (GetKeyState("LButton", "P") && state && CheckIfWinActive())
+    {
+		MouseGetPos, xpos, ypos
+		FormatTime, timestamp, %A_Now%, yyyy-MM-dd HH:mm:ss
+		FileAppend, %timestamp% - x: %xpos% y: %ypos%`n, mouse_log.txt
+		Sleep, 10
+	}
+}
+
+
+
+mmove(x,y){
+	AHI.SendMouseMove(mouseId, x, y)
+}
+notice(message){
+    ToolTip, %message% on
+    Sleep 500
+    ToolTip
+}
+CheckIfWinActive(){
+    IfWinActive, ahk_exe %game_name%
+        return true
+    else
+        return false
+}
+return
 ;====================================================================================
-;==========================================MOUSE=====================================
 /*
 ;0: Left Mouse
 ;1: Right Mouse
@@ -40,122 +144,32 @@ Loop, Read, ak47.txt
 ;4: Side Button 2
 ;5: Mouse Wheel (Vertical)
 ;6: Mouse Wheel (Horizontal)
-*/
-AHI.SubscribeMouseButtons(mouseId, false, Func("MouseButtonEvent"), true)
-MouseButtonEvent(code, state){
-	IfWinNotActive, ahk_exe RustClient.exe
-		return
-	;0: Left Mouse
-	if code = 0
-	{
-		ls_left := (state = 1) ? 1 : 0
-		;ToolTip % "Mouse Button - Code: " code ", State: " state
-		while (ls_left = 1)
-			returnedValue := left_down()
-		if returnedValue = 0
-			left_up()
-	}
-	else if code = 2
-	{
-		if state
-		{
-			loop, 10
-			{
-				AHI.SendMouseMove(mouseId, 127, 0)
-				Random, randNum, 16, 22
-				Sleep, %randNum%
-			}
-		}
+;~ start := A_TickCount
+;~ notice_mod_chance("state " . state . " All_Guns_Fire_mouse")
+;~ Run, chair\chair.ahk
+;~ #SingleInstance force
+;~ #Persistent
+;~ #InstallMouseHook
+;~ AHI.SendMouseButtonEvent(mouseId, 0, 1)
+;~ AHI.SendMouseButtonEvent(mouseId, 0, 0)
+;~ start := A_TickCount
+;;~ if ((A_TickCount - start)/1000) > 3
+    ;;~ break
+myList := []
+While GetKeyState("LButton", "P")
+{
+    ; Get the current position of the mouse
+    ;~ MouseGetPos, currentX, currentY
+    direction := AHI.GetDirection(cp, dp)
+    ; Calculate the distance moved from the starting position
+    ;~ distance := AHI.GetDirection(startX "|" startY, currentX "|" currentY)
 
-	}
+    ; Print the distance moved
+    myList.push(direction)
+    ToolTip, % " : " direction
 }
-;====================================================================================
-;==========================================MOUSE RECORD==============================
-;AHI.SubscribeMouseButtons(mouseId, false, Func("record_mouse_movements"), true)
-record_mouse_movements(code, state){
-	if code = 0 ;0: Left Mouse
-	{
-		if state
-		{
-			AHI.SubscribeMouseMove(mouseId, false, Func("MouseMoveEvent"))
-		}
-		else
-		{
-			AHI.UnsubscribeMouseMove(mouseId, false, Func("MouseMoveEvent"))
-			mouseData := mouseData_dezenleme(mouseData)
-			mouseDataStr := ""
-			for i, item in mouseData
-			{
-				mouseDataStr .= "Timestamp: " item.timestamp ", X: " item.x ", Y: " item.y "`n"
-			}
-			Clipboard := mouseDataStr
-			mouseData := []
-		}
-	}
-
-}
-MouseMoveEvent(x, y){
-	timestamp := A_TickCount
-	mouseData.push({ "timestamp": timestamp, "x": x, "y": y })
-	;ToolTip, %x% %y%
-}
-mouseData_dezenleme(mouseData){
-	mouseData_ := []
-	global x := 0
-	global y := 0
-	; loop through original mouse data
-	;lastIndex := mouseData.Length() - 1
-	;lastElement := mouseData[lastIndex]
-	for i, line in mouseData
-	{
-		if i = 1
-			continue
-		previousLine := mouseData[i-1]
-		; check if this line has the same x and y values as the previous line
-		if line.Timestamp = previousLine.Timestamp
-		{
-			; add this line to the current line
-			x += line.X
-			x += previousLine.X
-			y += line.Y
-			y += previousLine.Y
-			continue
-		}
-		else
-		{
-			elepsed := line.Timestamp - previousLine.Timestamp
-		}
-		mouseData_.push({ "timestamp": elepsed, "x": x, "y": y })
-		x := 0
-		y := 0
-	}
-	return mouseData_
-}
-;====================================================================================
-return
-;==========================================MAIN======================================
-left_down(){
-	;ToolTip, daa
-	for i, line in dataAk47
-	{
-		if (!GetKeyState("LButton", "P")) or (GetKeyState("CTRL", "P"))
-			break
-		time := line.Timestamp
-		x := line.x
-		y := line.y
-		AHI.SendMouseMove(mouseId, x, y)
-		sleep, %time%
-	}
-	;reload ;macro record testing
-
-return 0
-}
-left_up(){
-	;ToolTip, up
-
-}
-;====================================================================================
-/*
+myString := myList.Join(", ")
+Clipboard := myString  ; copy string to clipboard
 ;AHI.SubscribeMouseMoveAbsolute(mouseId, false, Func("MouseEvent"))
 ;AHI.SubscribeMouseMoveRelative(mouseId, false, Func("MouseEvent"))
 
@@ -181,16 +195,6 @@ return
 	ControlSend, , ^s, ahk_exe SciTE.exe
 	Reload
 return
-
-
-
-
-
-
-
-
-
-
 
 
 
